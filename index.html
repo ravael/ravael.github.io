@@ -204,17 +204,6 @@
                 max-height: 85vh;
             }
         }
-
-        /* Debug visual (pode remover depois) */
-        .debug-point {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            background: red;
-            border-radius: 50%;
-            pointer-events: none;
-            z-index: 1000;
-        }
     </style>
 </head>
 <body>
@@ -226,7 +215,7 @@
     <div class="win-content">
         <img src="https://img1.picmix.com/output/stamp/normal/8/1/6/9/369618_550ed.gif" alt="Celebração" />
         <div class="win-title">PARABÉNS!!!</div>
-        <div class="win-message">Natália musa well-ness do gama, shape divônico.</div>
+        <div class="win-message">Natália além de esculpida na academia você é muito habilidosa.</div>
         <div class="win-message">Entre em contato com o desenvolvedor para retirar o seu prêmio.</div>
         <button class="restart-btn" onclick="restartGame()">Jogar Novamente</button>
     </div>
@@ -236,24 +225,17 @@
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
 
-    // Configuração inicial do canvas
+    // Configuração inicial do canvas - SIMPLIFICADA
     function setupCanvas() {
-        const dpr = window.devicePixelRatio || 1;
-        const rect = canvas.getBoundingClientRect();
-
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
-        canvas.style.width = rect.width + 'px';
-        canvas.style.height = rect.height + 'px';
-
-        ctx.scale(dpr, dpr);
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
     }
     setupCanvas();
 
     let heartX, heartY;
     let clicks = 0;
     const maxClicks = 5;
-    const heartSize = Math.min(80, Math.max(60, window.innerWidth * 0.12));
+    const heartSize = 70; // Tamanho fixo para simplificar
 
     const heart = new Image();
     heart.src = "https://opengameart.org/sites/default/files/heart%20pixel%20art%20254x254.png";
@@ -290,17 +272,13 @@
         }
 
         // Calcular coordenadas relativas ao canvas
-        const scaleX = canvas.width / canvas.offsetWidth;
-        const scaleY = canvas.height / canvas.offsetHeight;
+        const mouseX = clientX - rect.left;
+        const mouseY = clientY - rect.top;
 
-        const mouseX = (clientX - rect.left) * scaleX;
-        const mouseY = (clientY - rect.top) * scaleY;
-
-        // Debug visual (pode remover)
-        // createDebugPoint(clientX, clientY);
+        console.log('Clique em:', mouseX, mouseY, 'Coração em:', heartX, heartY); // Debug
 
         // Verificar colisão com área expandida para melhor UX
-        const tolerance = 10; // pixels de tolerância
+        const tolerance = 15; // pixels de tolerância
         const hitX = mouseX >= (heartX - tolerance) && mouseX <= (heartX + heartSize + tolerance);
         const hitY = mouseY >= (heartY - tolerance) && mouseY <= (heartY + heartSize + tolerance);
 
@@ -334,20 +312,6 @@
                 canvas.style.filter = 'brightness(1)';
             }, 200);
         }
-    }
-
-    // Função de debug (pode remover)
-    function createDebugPoint(x, y) {
-        const point = document.createElement('div');
-        point.className = 'debug-point';
-        point.style.left = (x - 5) + 'px';
-        point.style.top = (y - 5) + 'px';
-        document.body.appendChild(point);
-        setTimeout(() => {
-            if (point.parentNode) {
-                point.parentNode.removeChild(point);
-            }
-        }, 1000);
     }
 
     function createFireworks(x, y) {
@@ -437,13 +401,19 @@
     }
 
     function moveHeart() {
-        // Garantir que o coração não fique muito perto das bordas
-        const margin = heartSize + 30;
-        const maxX = canvas.width - heartSize - margin;
-        const maxY = canvas.height - heartSize - margin;
+        // CÁLCULO CORRIGIDO - garantir que o coração fique dentro da tela
+        const safeMargin = 20; // Margem de segurança
 
-        heartX = margin + Math.random() * Math.max(0, maxX - margin);
-        heartY = margin + Math.random() * Math.max(0, maxY - margin);
+        // Largura e altura disponíveis (considerando a margem)
+        const availableWidth = canvas.width - heartSize - (safeMargin * 2);
+        const availableHeight = canvas.height - heartSize - (safeMargin * 2);
+
+        // Gerar posições aleatórias dentro da área segura
+        heartX = safeMargin + Math.random() * availableWidth;
+        heartY = safeMargin + Math.random() * availableHeight;
+
+        console.log('Novo coração em:', heartX, heartY, 'Canvas:', canvas.width, canvas.height); // Debug
+
         drawScene();
     }
 
@@ -453,6 +423,11 @@
         // Desenhar coração
         if (heart.complete) {
             ctx.drawImage(heart, heartX, heartY, heartSize, heartSize);
+
+            // Debug: desenhar borda vermelha ao redor do coração (pode remover depois)
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(heartX, heartY, heartSize, heartSize);
         }
 
         showClicksAnimation(clicks);
@@ -504,15 +479,15 @@
         startGame();
     };
 
-    // Redimensionamento responsivo
+    // Redimensionamento responsivo - CORRIGIDO
     window.addEventListener('resize', function() {
         setupCanvas();
         if (!document.getElementById("divWin").hidden) {
             return;
         }
-        // Reposicionar coração dentro dos novos limites
-        heartX = Math.min(heartX, canvas.width - heartSize);
-        heartY = Math.min(heartY, canvas.height - heartSize);
+        // Reposicionar coração garantindo que fique dentro da tela
+        heartX = Math.min(heartX, canvas.width - heartSize - 20);
+        heartY = Math.min(heartY, canvas.height - heartSize - 20);
         drawScene();
     });
 
