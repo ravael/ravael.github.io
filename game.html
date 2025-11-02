@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Jogo do Coração Mágico</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #FFEBE6; /* Background rosa claro */
+        }
+        canvas {
+            display: block;
+        }
+        .title {
+            position: absolute;
+            top: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Handjet', cursive;
+            font-size: 24px;
+            color: chocolate;
+        }
+        .title2 {
+            position: absolute;
+            top: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Handjet', cursive;
+            font-size: 24px;
+            color: chocolate;
+        }
+        .win {
+            position: absolute;
+            top: 150px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Sarabun', sans-serif;
+            font-size: 28px;
+            color: chocolate;
+            text-align: center;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 600px;
+        }
+        .score {
+            position: absolute;
+            top: 150px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Handjet', cursive;
+            font-size: 21px;
+            color: black;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        /* Partículas de fogos de artifício */
+        .particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+        }
+        
+        @keyframes firework {
+            0% { 
+                transform: translate(var(--x), var(--y));
+                opacity: 1;
+            }
+            50% { 
+                opacity: 1;
+            }
+            100% { 
+                transform: translate(var(--tx), var(--ty));
+                opacity: 0;
+            }
+        }
+        
+        /* Botão de reiniciar */
+        .restart-btn {
+            margin-top: 20px;
+            padding: 12px 24px;
+            font-size: 18px;
+            font-family: 'Handjet', cursive;
+            background-color: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .restart-btn:hover {
+            background-color: #ff5252;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .restart-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .win-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+    </style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<div class="title">Jogo do coração mágico</div>
+<div class="title2">Acerte o coração 5 vezes para um prêmio misterioso.</div>
+<div id="score" class="score"></div>
+
+<div id="divWin" class="win" hidden="true">
+    <div class="win-content">
+        <img src="https://img1.picmix.com/output/stamp/normal/8/1/6/9/369618_550ed.gif" alt="this slowpoke moves" width="250" />
+        <div style="font-size: 32px; font-weight: bold;">PARABÉNS!!!</div>
+        <div style="font-size: 18px; margin-bottom: 10px;">Além de você ser uma pessoa muito bonita, é também muito habilidosa.</div>
+        <div style="font-size: 18px; margin-bottom: 10px;">Entre em contato com o desenvolvedor para retirar o seu prêmio.</div>
+        <button class="restart-btn" onclick="restartGame()">Jogar Novamente</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let heartX = Math.random() * (canvas.width - 50);
+    let heartY = Math.random() * (canvas.height - 50);
+    let clicks = 0;
+    const maxClicks = 5;
+
+    const heart = new Image();
+    heart.src = "https://opengameart.org/sites/default/files/heart%20pixel%20art%20254x254.png";
+
+    const congrats = new Image();
+    congrats.src = "https://pixelartmaker-data-78746291193.nyc3.digitaloceanspaces.com/image/1fc6b51b57165f9.png";
+
+    let win = false;
+    let heartInterval;
+
+    function startGame() {
+        heartInterval = setInterval(moveHeart, 1500);
+        drawScene();
+    }
+
+    canvas.addEventListener("click", function(event) {
+        const mouseX = event.clientX;
+        const mouseY = event.clientY;
+
+        if (mouseX >= heartX && mouseX <= heartX + 50 &&
+            mouseY >= heartY && mouseY <= heartY + 50) {
+            clicks++;
+            showClicksAnimation(clicks);
+            createFireworks(heartX + 25, heartY + 25); // Centro do coração
+            
+            if (clicks === maxClicks) {
+                setTimeout(showCongratulations, 800);
+            } else {
+                setTimeout(moveHeart, 800);
+            }
+        }
+    });
+
+    function createFireworks(x, y) {
+        const colors = ['#ff0000', '#ff6b6b', '#ff8e8e', '#ff5252', '#ff3838', '#ff9f43', '#ffaf40'];
+        const particleCount = 80;
+        
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            
+            // Cor aleatória
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            particle.style.backgroundColor = color;
+            
+            // Ângulo e velocidade aleatórios
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 2 + Math.random() * 4;
+            const distance = 50 + Math.random() * 100;
+            
+            // Calcular posição final
+            const tx = Math.cos(angle) * distance;
+            const ty = Math.sin(angle) * distance;
+            
+            // Definir propriedades CSS
+            particle.style.setProperty('--x', '0px');
+            particle.style.setProperty('--y', '0px');
+            particle.style.setProperty('--tx', tx + 'px');
+            particle.style.setProperty('--ty', ty + 'px');
+            
+            // Posição inicial
+            particle.style.left = x + 'px';
+            particle.style.top = y + 'px';
+            
+            // Duração aleatória da animação
+            const duration = 800 + Math.random() * 400;
+            particle.style.animation = `firework ${duration}ms ease-out forwards`;
+            
+            // Tamanho aleatório
+            const size = 3 + Math.random() * 5;
+            particle.style.width = size + 'px';
+            particle.style.height = size + 'px';
+            
+            document.body.appendChild(particle);
+            
+            // Remover partícula após a animação
+            setTimeout(() => {
+                if (particle.parentNode) {
+                    particle.parentNode.removeChild(particle);
+                }
+            }, duration + 100);
+        }
+        
+        // Efeito de brilho adicional
+        createGlowEffect(x, y);
+    }
+
+    function createGlowEffect(x, y) {
+        const glow = document.createElement('div');
+        glow.style.position = 'absolute';
+        glow.style.left = (x - 25) + 'px';
+        glow.style.top = (y - 25) + 'px';
+        glow.style.width = '50px';
+        glow.style.height = '50px';
+        glow.style.borderRadius = '50%';
+        glow.style.background = 'radial-gradient(circle, #ff6b6b 0%, transparent 70%)';
+        glow.style.pointerEvents = 'none';
+        glow.style.opacity = '0';
+        
+        document.body.appendChild(glow);
+        
+        // Animação do brilho
+        glow.animate([
+            { opacity: 0, transform: 'scale(0.5)' },
+            { opacity: 1, transform: 'scale(1.5)' },
+            { opacity: 0, transform: 'scale(2)' }
+        ], {
+            duration: 600,
+            easing: 'ease-out'
+        });
+        
+        // Remover após animação
+        setTimeout(() => {
+            if (glow.parentNode) {
+                glow.parentNode.removeChild(glow);
+            }
+        }, 600);
+    }
+
+    function showClicksAnimation(count) {
+        let elementById = document.getElementById("score");
+        elementById.innerHTML = `Clique: ${clicks}`;
+        
+        // Efeito visual no contador
+        elementById.style.transform = 'translateX(-50%) scale(1.2)';
+        setTimeout(() => {
+            elementById.style.transform = 'translateX(-50%) scale(1)';
+        }, 200);
+    }
+
+    function moveHeart() {
+        heartX = Math.random() * (canvas.width - 50);
+        heartY = Math.random() * (canvas.height - 50);
+        drawScene();
+    }
+
+    function drawScene() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(heart, heartX, heartY, 50, 50);
+        showClicksAnimation(clicks);
+    }
+
+    function showCongratulations(){
+        // Parar o movimento do coração
+        clearInterval(heartInterval);
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let elementById = document.getElementById("score");
+        elementById.hidden = true;
+        let divWin = document.getElementById("divWin");
+        divWin.hidden = false;
+        
+        // Grandes fogos de artifício para a vitória
+        for (let i = 0; i < 10; i++) {
+            setTimeout(() => {
+                createFireworks(
+                    Math.random() * canvas.width,
+                    Math.random() * canvas.height
+                );
+            }, i * 300);
+        }
+    }
+
+    function restartGame() {
+        // Resetar variáveis do jogo
+        clicks = 0;
+        heartX = Math.random() * (canvas.width - 50);
+        heartY = Math.random() * (canvas.height - 50);
+        
+        // Esconder tela de vitória
+        let divWin = document.getElementById("divWin");
+        divWin.hidden = true;
+        
+        // Mostrar contador
+        let elementById = document.getElementById("score");
+        elementById.hidden = false;
+        elementById.innerHTML = `Clique: ${clicks}`;
+        
+        // Limpar canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Reiniciar movimento do coração
+        clearInterval(heartInterval);
+        startGame();
+        
+        // Criar um pequeno firework no centro para celebrar o reinício
+        setTimeout(() => {
+            createFireworks(canvas.width / 2, canvas.height / 2);
+        }, 100);
+    }
+
+    heart.onload = function() {
+        startGame();
+    };
+
+    // Atualize o tamanho do canvas quando a janela for redimensionada
+    window.addEventListener('resize', function() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        if (!divWin.hidden) {
+            // Se estiver na tela de vitória, não resetar o jogo
+            return;
+        }
+        clicks = 0;
+        drawScene();
+    });
+</script>
+</body>
+</html>
