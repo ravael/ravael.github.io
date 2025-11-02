@@ -205,9 +205,15 @@
             }
         }
 
-        /* Prevenir zoom no double tap */
-        .no-zoom {
-            touch-action: manipulation;
+        /* Debug visual (pode remover depois) */
+        .debug-point {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: red;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 1000;
         }
     </style>
 </head>
@@ -220,9 +226,9 @@
     <div class="win-content">
         <img src="https://img1.picmix.com/output/stamp/normal/8/1/6/9/369618_550ed.gif" alt="Celebração" />
         <div class="win-title">PARABÉNS!!!</div>
-        <div class="win-message">Natália além de esculpida na academia você é muito habilidosa.</div>
+        <div class="win-message">Natália musa well-ness do gama, shape divônico.</div>
         <div class="win-message">Entre em contato com o desenvolvedor para retirar o seu prêmio.</div>
-        <button class="restart-btn no-zoom" onclick="restartGame()">Jogar Novamente</button>
+        <button class="restart-btn" onclick="restartGame()">Jogar Novamente</button>
     </div>
 </div>
 
@@ -232,24 +238,32 @@
 
     // Configuração inicial do canvas
     function setupCanvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        canvas.style.width = rect.width + 'px';
+        canvas.style.height = rect.height + 'px';
+
+        ctx.scale(dpr, dpr);
     }
     setupCanvas();
 
-    let heartX = Math.random() * (canvas.width - 80);
-    let heartY = Math.random() * (canvas.height - 80);
+    let heartX, heartY;
     let clicks = 0;
     const maxClicks = 5;
-    const heartSize = Math.min(80, Math.max(50, canvas.width * 0.1)); // Tamanho responsivo
+    const heartSize = Math.min(80, Math.max(60, window.innerWidth * 0.12));
 
     const heart = new Image();
     heart.src = "https://opengameart.org/sites/default/files/heart%20pixel%20art%20254x254.png";
 
     let win = false;
     let heartInterval;
+    let isProcessingClick = false;
 
     function startGame() {
+        moveHeart();
         heartInterval = setInterval(moveHeart, 1500);
         drawScene();
     }
@@ -259,7 +273,11 @@
     canvas.addEventListener("touchend", handleTap);
 
     function handleTap(event) {
+        if (isProcessingClick) return;
+
         event.preventDefault();
+        event.stopPropagation();
+
         const rect = canvas.getBoundingClientRect();
         let clientX, clientY;
 
@@ -271,26 +289,70 @@
             clientY = event.clientY;
         }
 
-        const mouseX = clientX - rect.left;
-        const mouseY = clientY - rect.top;
+        // Calcular coordenadas relativas ao canvas
+        const scaleX = canvas.width / canvas.offsetWidth;
+        const scaleY = canvas.height / canvas.offsetHeight;
 
-        if (mouseX >= heartX && mouseX <= heartX + heartSize &&
-            mouseY >= heartY && mouseY <= heartY + heartSize) {
+        const mouseX = (clientX - rect.left) * scaleX;
+        const mouseY = (clientY - rect.top) * scaleY;
+
+        // Debug visual (pode remover)
+        // createDebugPoint(clientX, clientY);
+
+        // Verificar colisão com área expandida para melhor UX
+        const tolerance = 10; // pixels de tolerância
+        const hitX = mouseX >= (heartX - tolerance) && mouseX <= (heartX + heartSize + tolerance);
+        const hitY = mouseY >= (heartY - tolerance) && mouseY <= (heartY + heartSize + tolerance);
+
+        if (hitX && hitY) {
+            isProcessingClick = true;
             clicks++;
             showClicksAnimation(clicks);
             createFireworks(heartX + heartSize/2, heartY + heartSize/2);
 
+            // Feedback visual do acerto
+            canvas.style.filter = 'brightness(1.2)';
+            setTimeout(() => {
+                canvas.style.filter = 'brightness(1)';
+            }, 200);
+
             if (clicks === maxClicks) {
-                setTimeout(showCongratulations, 800);
+                setTimeout(() => {
+                    showCongratulations();
+                    isProcessingClick = false;
+                }, 800);
             } else {
-                setTimeout(moveHeart, 800);
+                setTimeout(() => {
+                    moveHeart();
+                    isProcessingClick = false;
+                }, 800);
             }
+        } else {
+            // Feedback visual do erro
+            canvas.style.filter = 'brightness(0.8)';
+            setTimeout(() => {
+                canvas.style.filter = 'brightness(1)';
+            }, 200);
         }
+    }
+
+    // Função de debug (pode remover)
+    function createDebugPoint(x, y) {
+        const point = document.createElement('div');
+        point.className = 'debug-point';
+        point.style.left = (x - 5) + 'px';
+        point.style.top = (y - 5) + 'px';
+        document.body.appendChild(point);
+        setTimeout(() => {
+            if (point.parentNode) {
+                point.parentNode.removeChild(point);
+            }
+        }, 1000);
     }
 
     function createFireworks(x, y) {
         const colors = ['#ff0000', '#ff6b6b', '#ff8e8e', '#ff5252', '#ff3838', '#ff9f43', '#ffaf40'];
-        const particleCount = Math.min(60, window.innerWidth / 10); // Partículas responsivas
+        const particleCount = Math.min(60, window.innerWidth / 10);
 
         for (let i = 0; i < particleCount; i++) {
             const particle = document.createElement('div');
@@ -368,7 +430,7 @@
         let elementById = document.getElementById("score");
         elementById.innerHTML = `Cliques: ${clicks}/${maxClicks}`;
 
-        elementById.style.transform = 'translateX(-50%) scale(1.1)';
+        elementById.style.transform = 'translateX(-50%) scale(1.2)';
         setTimeout(() => {
             elementById.style.transform = 'translateX(-50%) scale(1)';
         }, 200);
@@ -376,15 +438,23 @@
 
     function moveHeart() {
         // Garantir que o coração não fique muito perto das bordas
-        const margin = heartSize + 20;
-        heartX = margin + Math.random() * (canvas.width - 2 * margin);
-        heartY = margin + Math.random() * (canvas.height - 2 * margin);
+        const margin = heartSize + 30;
+        const maxX = canvas.width - heartSize - margin;
+        const maxY = canvas.height - heartSize - margin;
+
+        heartX = margin + Math.random() * Math.max(0, maxX - margin);
+        heartY = margin + Math.random() * Math.max(0, maxY - margin);
         drawScene();
     }
 
     function drawScene() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(heart, heartX, heartY, heartSize, heartSize);
+
+        // Desenhar coração
+        if (heart.complete) {
+            ctx.drawImage(heart, heartX, heartY, heartSize, heartSize);
+        }
+
         showClicksAnimation(clicks);
     }
 
@@ -410,9 +480,8 @@
 
     function restartGame() {
         clicks = 0;
-        setupCanvas(); // Atualizar tamanhos
-        heartX = Math.random() * (canvas.width - heartSize);
-        heartY = Math.random() * (canvas.height - heartSize);
+        isProcessingClick = false;
+        setupCanvas();
 
         let divWin = document.getElementById("divWin");
         divWin.hidden = true;
@@ -444,7 +513,6 @@
         // Reposicionar coração dentro dos novos limites
         heartX = Math.min(heartX, canvas.width - heartSize);
         heartY = Math.min(heartY, canvas.height - heartSize);
-        clicks = 0;
         drawScene();
     });
 
@@ -460,6 +528,11 @@
     document.addEventListener('gestureend', function(e) {
         e.preventDefault();
     });
+
+    // Garantir que o coração carregou
+    if (heart.complete) {
+        startGame();
+    }
 </script>
 </body>
 </html>
